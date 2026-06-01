@@ -12,12 +12,12 @@ from dataclasses import dataclass
 
 @dataclass
 class IVResult:
-    late: float          # Local Average Treatment Effect
+    late: float
     se: float
     ci_lower: float
     ci_upper: float
     p_value: float
-    first_stage_f: float # Should be > 10 for strong instrument
+    first_stage_f: float
     instrument_relevance: str
 
 
@@ -31,13 +31,13 @@ class TwoStageLeastSquares:
             instrument: str, controls: list[str] = None) -> IVResult:
         controls = controls or []
 
-        # Stage 1: regress treatment on instrument (+ controls)
         X1 = sm.add_constant(df[[instrument] + controls])
         stage1 = sm.OLS(df[treatment], X1).fit()
         t_hat = stage1.fittedvalues
-        f_stat = float(stage1.fstatistic.item()) if hasattr(stage1.fstatistic, 'item') else float(stage1.fstatistic)
 
-        # Stage 2: regress outcome on predicted treatment
+        # fvalue works across all statsmodels versions
+        f_stat = float(getattr(stage1, "fvalue", None) or 0.0)
+
         X2 = sm.add_constant(pd.DataFrame({"t_hat": t_hat}).join(df[controls]))
         stage2 = sm.OLS(df[outcome], X2).fit(cov_type="HC3")
 
